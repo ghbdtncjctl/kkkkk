@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.feature_selection import GenericUnivariateSelect, mutual_info_classif, SelectFromModel
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import StratifiedKFold, GridSearchCV, cross_val_score
+from sklearn.model_selection import StratifiedKFold, GridSearchCV, cross_validate
 from sklearn.preprocessing import PowerTransformer
 from sklearn.linear_model import LogisticRegression
 
@@ -28,11 +28,7 @@ def grid_search(model, gs_params):
                       scoring='roc_auc', n_jobs=-1, cv=skf, verbose=0)
     gs.fit(X, y)
     scores = [gs.cv_results_[f'split{i}_test_score'][gs.best_index_] for i in range(skf.n_splits)]
-    print('scores = {}, \nmean score = {:.5f} +/- {:.5f} \
-           \nbest params = {}'.format(scores,
-                                      gs.cv_results_['mean_test_score'][gs.best_index_],
-                                      gs.cv_results_['std_test_score'][gs.best_index_],
-                                      gs.best_params_))
+    print('best params = {}'.format(gs.best_params_))
     return gs
         
 # загрузим данные        
@@ -56,9 +52,12 @@ lr1 = Pipeline([('p_trans', PowerTransformer(method='yeo-johnson', standardize=T
 # параметры кросс-валидации (стратифицированная 5-фолдовая с перемешиванием) 
 skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
 
-scores = cross_val_score(estimator=lr1, X=X, y=y, 
-                         cv=skf, scoring='roc_auc', n_jobs=-1)
-print('scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(scores, scores.mean(), scores.std()))
+dict = cross_validate(estimator=lr1, X=X, y=y, 
+                         cv=skf, scoring='roc_auc', n_jobs=-1,return_train_score=True)
+test_score = dict['test_score'];
+train_score = dict['train_score'];
+print('train scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(train_score, train_score.mean(), train_score.std()))
+print('test score = {} \nmean score = {:.5f} +/- {:.5f}'.format(test_score, test_score.mean(), test_score.std()))
 # важность признаков
 plot_features_scores(model=lr1, data=X, target=y, column_names=X.columns)
 print(pd.DataFrame(data={'score': lr1['lr'].coef_[0]/sum(lr1['lr'].coef_[0])},
@@ -71,9 +70,12 @@ lr2 = Pipeline([('p_trans', PowerTransformer(method='yeo-johnson', standardize=T
                                          class_weight='balanced',
                                          random_state=SEED)
                )])
-scores = cross_val_score(estimator=lr2, X=X, y=y, 
-                         cv=skf, scoring='roc_auc', n_jobs=-1)
-print('scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(scores, scores.mean(), scores.std()))
+dict = cross_validate(estimator=lr2, X=X, y=y, 
+                         cv=skf, scoring='roc_auc', n_jobs=-1,return_train_score=True)
+test_score = dict['test_score'];
+train_score = dict['train_score'];
+print('train scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(train_score, train_score.mean(), train_score.std()))
+print('test score = {} \nmean score = {:.5f} +/- {:.5f}'.format(test_score, test_score.mean(), test_score.std()))
 
 plot_features_scores(model=lr2, data=X, target=y, column_names=X.columns)
 print(pd.DataFrame(data={'score': lr2['lr'].coef_[0]/sum(lr2['lr'].coef_[0])},
@@ -103,17 +105,23 @@ for i in range(4):
 # итоговый датасет
 X.head()
 plt.show()
-scores = cross_val_score(estimator=lr1, X=X, y=y, 
-                         cv=skf, scoring='roc_auc', n_jobs=-1)
-print('scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(scores, scores.mean(), scores.std()))
+dict = cross_validate(estimator=lr1, X=X, y=y, 
+                         cv=skf, scoring='roc_auc', n_jobs=-1,return_train_score=True)
+test_score = dict['test_score'];
+train_score = dict['train_score'];
+print('train scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(train_score, train_score.mean(), train_score.std()))
+print('test score = {} \nmean score = {:.5f} +/- {:.5f}'.format(test_score, test_score.mean(), test_score.std()))
 
 plot_features_scores(model=lr1, data=X, target=y, column_names=X.columns)
 print(pd.DataFrame(data={'score': lr1['lr'].coef_[0]/sum(lr1['lr'].coef_[0])},
                  index=X.columns) .sort_values(by='score',ascending = False))
 plt.show()
-scores = cross_val_score(estimator=lr2, X=X, y=y, 
-                         cv=skf, scoring='roc_auc', n_jobs=-1)
-print('scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(scores, scores.mean(), scores.std()))
+dict = cross_validate(estimator=lr2, X=X, y=y, 
+                         cv=skf, scoring='roc_auc', n_jobs=-1,return_train_score=True)
+test_score = dict['test_score'];
+train_score = dict['train_score'];
+print('train scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(train_score, train_score.mean(), train_score.std()))
+print('test score = {} \nmean score = {:.5f} +/- {:.5f}'.format(test_score, test_score.mean(), test_score.std()))
 
 
 plot_features_scores(model=lr2, data=X, target=y, column_names=X.columns)
@@ -121,12 +129,26 @@ print(pd.DataFrame(data={'score': lr2['lr'].coef_[0]/sum(lr2['lr'].coef_[0])},
                  index=X.columns) .sort_values(by='score',ascending = False))
 plt.show()
 
-lr1_params = {'lr__C': np.logspace(-10,1,50)}
-lr2_params = {'lr__C': np.logspace(-100,0,50)}
+lr1_params = {'lr__C': np.arange(0.001,0.02,0.001)}
+lr2_params = {'lr__C': np.arange(0.001,0.02,0.0001)}
              
 print('grid search results for lr')
 lr1_grid = grid_search(model=lr1, gs_params=lr1_params)
 lr2_grid = grid_search(model=lr2, gs_params=lr2_params)
+
+dict = cross_validate(estimator=lr1_grid, X=X, y=y, 
+                         cv=skf, scoring='roc_auc', n_jobs=-1,return_train_score=True)
+test_score = dict['test_score'];
+train_score = dict['train_score'];
+print('train scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(train_score, train_score.mean(), train_score.std()))
+print('test score = {} \nmean score = {:.5f} +/- {:.5f}'.format(test_score, test_score.mean(), test_score.std()))
+
+dict = cross_validate(estimator=lr2_grid, X=X, y=y, 
+                         cv=skf, scoring='roc_auc', n_jobs=-1,return_train_score=True)
+test_score = dict['test_score'];
+train_score = dict['train_score'];
+print('train scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(train_score, train_score.mean(), train_score.std()))
+print('test score = {} \nmean score = {:.5f} +/- {:.5f}'.format(test_score, test_score.mean(), test_score.std()))
 
 plot_features_scores(model=lr1_grid.best_estimator_, 
                      data=X, target=y, column_names=X.columns)

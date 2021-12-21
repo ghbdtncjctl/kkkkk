@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.feature_selection import GenericUnivariateSelect, mutual_info_classif, SelectFromModel
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import StratifiedKFold, GridSearchCV, cross_val_score
+from sklearn.model_selection import StratifiedKFold, GridSearchCV, cross_validate
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import PowerTransformer
 from sklearn.linear_model import LogisticRegression
@@ -54,10 +54,12 @@ rf = Pipeline([('rf', RandomForestClassifier(n_jobs=-1,
 # параметры кросс-валидации (стратифицированная 5-фолдовая с перемешиванием) 
 skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
 
-scores = cross_val_score(estimator=rf, X=X, y=y, 
-                         cv=skf, scoring='roc_auc', n_jobs=-1)
-print('scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(scores, scores.mean(), scores.std()))
-
+dict = cross_validate(estimator=rf, X=X, y=y, 
+                         cv=skf, scoring='roc_auc', n_jobs=-1,return_train_score=True)
+test_score = dict['test_score'];
+train_score = dict['train_score'];
+print('test score = {} \nmean score = {:.5f} +/- {:.5f}'.format(test_score, test_score.mean(), test_score.std()))
+print('train scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(train_score, train_score.mean(), train_score.std()))
 # важность признаков
 plot_features_scores(model=rf, data=X, target=y, column_names=X.columns)
 #plt.show()
@@ -85,9 +87,12 @@ for i in range(4):
 # итоговый датасет
 X.head()
 #plt.show()
-scores = cross_val_score(estimator=rf, X=X, y=y, 
-                         cv=skf, scoring='roc_auc', n_jobs=-1)
-print('scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(scores, scores.mean(), scores.std()))
+dict = cross_validate(estimator=rf, X=X, y=y, 
+                         cv=skf, scoring='roc_auc', n_jobs=-1,return_train_score=True)
+test_score = dict['test_score'];
+train_score = dict['train_score'];
+print('train scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(train_score, train_score.mean(), train_score.std()))
+print('test score = {} \nmean score = {:.5f} +/- {:.5f}'.format(test_score, test_score.mean(), test_score.std()))
 plot_features_scores(model=rf, data=X, target=y, column_names=X.columns)
 #plt.show()
 
@@ -113,6 +118,12 @@ rf_params = {'selector__param': np.arange(4,6),
             'rf__max_features': np.arange(0.1, 0.4, 0.1)}
 print('grid search results for rf')
 rf_grid = grid_search(model = rf, gs_params= rf_params)
+dict = cross_validate(estimator=rf_grid.best_estimator_['rf'], X=X, y=y, 
+                         cv=skf, scoring='roc_auc', n_jobs=-1,return_train_score=True)
+test_score = dict['test_score'];
+train_score = dict['train_score'];
+print('test score = {} \nmean score = {:.5f} +/- {:.5f}'.format(test_score, test_score.mean(), test_score.std()))
+print('train scores = {} \nmean score = {:.5f} +/- {:.5f}'.format(train_score, train_score.mean(), train_score.std()))
 # выведем признаки, отобранные селектором
 selected_features = [X.columns[i] for i, support
                      in enumerate(rf_grid.best_estimator_['selector'].get_support()) if support]
